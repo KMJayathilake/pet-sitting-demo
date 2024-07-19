@@ -9,7 +9,6 @@ const handlebars = require("express-handlebars");
 const pgp = require("pg-promise")();
 const bodyParser = require("body-parser");
 const bcrypt = require("bcryptjs");
-
 const session = require("express-session");
 
 // -------------------------------------  APP CONFIG   ----------------------------------------------
@@ -252,6 +251,9 @@ app.get("/edit-profile", isLoggedIn, async (req, res) => {
         [userId]
       );
 
+      // Fetch the pets associated with the employer
+      const pets = await db.any('SELECT * FROM PET WHERE owner_id = $1', [userId]);
+
       // Render the Handlebars template with the fetched data
       res.render("pages/edit-profile", {
         user: {
@@ -262,6 +264,7 @@ app.get("/edit-profile", isLoggedIn, async (req, res) => {
         employer: {
           budget: userData.budget,
         },
+        pets: pets,
         email: req.session.email,
       });
     } catch (error) {
@@ -359,6 +362,23 @@ app.post("/edit-profile", isLoggedIn, async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).send("Error updating profile");
+  }
+});
+
+// -------------------------------------  ADD PET   ---------------------------------------
+
+app.post('/add-pet', isLoggedIn, async (req, res) => {
+  try {
+    const { name, pet_type, age, special_needs } = req.body;
+    const userId = req.session.userId;
+    await db.query(
+      'INSERT INTO PET (owner_id, name, pet_type, age, special_needs) VALUES ($1, $2, $3, $4, $5)',
+      [userId, name, pet_type, age, special_needs]
+    );
+    res.redirect('/edit-profile');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
   }
 });
 
